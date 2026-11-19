@@ -124,3 +124,40 @@ failures in NOC IQ. It covers three failure scenarios:
 
 When a failure is resolved, log the event to `docs/operations/incident-notes.md`
 with the timestamp, root cause, and remediation steps for future reference.
+
+## Backup verification cadence
+
+`scripts/verify_db_backup.sh` runs a `pg_dump`, restores it into a temporary
+database, and compares row counts for the core tables. Run it as a drill; it is
+not a replacement for the production backup job.
+
+**Ownership and cadence**
+
+- The deployment owner for each environment (the person or team recorded as
+  owning that deployment) runs the drill, or delegates it by name in the
+  evidence record below.
+- Suggested cadence: at least once per release cycle and before any schema
+  migration is applied to production. Deployment owners may tighten this.
+
+**How to run** (inject the connection string from your secrets manager or
+shell environment; never paste real credentials into tickets, shell history
+shared with others, or this repository):
+
+```bash
+export DATABASE_URL   # already set from the secrets manager; do not echo it
+./scripts/verify_db_backup.sh
+```
+
+Optional overrides: `RESTORE_DB_NAME`, `BACKUP_TABLES`, `BACKUP_DIR`. The
+script exits non-zero on any row-count mismatch; treat that as a failed drill.
+
+**Recording restore evidence**
+
+Add an entry to `docs/operations/incident-notes.md` (the same log used in
+Succession below) containing:
+
+- Date/time (UTC) and environment
+- Who ran the drill
+- The script's `[verify_db_backup]` log output (confirm no connection string or
+  password appears before pasting)
+- Result: pass, or fail with the mismatching table and follow-up action
